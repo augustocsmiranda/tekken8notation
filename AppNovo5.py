@@ -341,11 +341,18 @@ class VirtualKeyboardApp(ctk.CTk):
             self.character_image_button.image = None
         else:
             char_image_path = os.path.join(char_folder, selected_character + ".png")
-            if os.path.exists(char_image_path):
+            '''if os.path.exists(char_image_path):
                 cimg = self._get_ctk_image(char_image_path, (48, 48))
                 self.character_image_button.configure(state="normal", text="", image=cimg,
                                                       command=self.add_character_image)
+                self.character_image_button.image = cimg'''
+            if os.path.exists(char_image_path):
+                cimg = self._get_ctk_image(char_image_path, (48, 48))
+                # sem ação ao clicar
+                self.character_image_button.configure(state="normal", text="", image=cimg)
+                self.character_image_button.configure(command=None)  # garante que não faz nada ao clicar
                 self.character_image_button.image = cimg
+
             else:
                 self.character_image_button.configure(state="disabled", text="(Character)", image=None)
                 self.character_image_button.image = None
@@ -697,6 +704,38 @@ class VirtualKeyboardApp(ctk.CTk):
             "• Escolha o personagem e clique no retrato para inserir o ícone.\n"
             "• R1..R4: 8 por linha; R5+: 12 por linha (costurando grupos).\n"
             "• F1 abre estas dicas.\n"
+            "\n"
+            "NOTATIONS TO TYPE\n"
+                "    • f  → Front\n"
+                "    • b  → Back\n"
+                "    • u  → Up\n"
+                "    • d  → Down\n"
+                "    • db → Down Back\n"
+                "    • df → Down Front\n"
+                "    • uf → Up Front\n"
+                "    • ub → Up Back\n"
+                "    • fh  → Front Hold\n"
+                "    • bh  → Back Hold\n"
+                "    • uh  → Up Hold\n"
+                "    • dh  → Down Hold\n"
+                "    • dbh → Down Back Hold\n"
+                "    • dfh → Down Front Hold\n"
+                "    • ufh → Up Front Hold\n"
+                "    • ubh → Up Back Hold\n"
+                "    • 1   → Left Punch\n"
+                "    • 2   → Right Punch\n"
+                "    • 3   → Left Kick\n"
+                "    • 4   → Right Kick\n"
+                "    • 12  → Left Punch + Right Punch\n"
+                "    • 34  → Left Kick + Right Kick\n"
+                "    • 13  → Left Throw\n"
+                "    • 24  → Right Throw\n"
+                "    • 123  → Left Punch + Right Punch + Left Kick\n"
+                "    • 124  → Left Punch + Right Punch + Right Kick\n"
+                "    • 134  → Left Punch + Left Kick + Right Kick\n"
+                "    • 234  → Right Punch + Left Kick + Right Kick\n"
+                "    • 1234 → Ki Charge\n"
+
         )
         try:
             top = ctk.CTkToplevel(self)
