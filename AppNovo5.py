@@ -172,29 +172,34 @@ class VirtualKeyboardApp(ctk.CTk):
 
     # ---------- Header ----------
     def _build_header(self):
-        header_card, header = self._card(self, pad=(16,12))
-        header_card.grid(row=0, column=0, sticky="ew", padx=12, pady=(12,8))
+        header_card, header = self._card(self, pad=(16, 12))
+        header_card.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 8))
         header.grid_columnconfigure(0, weight=1)
 
         left  = ctk.CTkFrame(header, fg_color="transparent")
         right = ctk.CTkFrame(header, fg_color="transparent")
-        left.grid(row=0, column=0, sticky="w", padx=(2,0))
+        left.grid(row=0, column=0, sticky="w", padx=(2, 0))
         right.grid(row=0, column=1, sticky="e")
 
-        # Character + retrato
+        # --- Character: retrato à esquerda, combo à direita ---
+        # Deixe a coluna do combo (col=1) expansível
+        left.grid_columnconfigure(1, weight=1)
+
+        # Retrato (primeiro)
+        self.character_image_button = ctk.CTkButton(
+            left, state="disabled", text="(Character)", width=48, height=48
+        )
+        self.character_image_button.grid(row=0, column=0, padx=(0, 10), sticky="w")
+
+        # Combo "Character" (depois do retrato)
         self._field(
             left, "Character",
             ctk.CTkComboBox,
             values=self.all_characters, width=220,
             variable=self.character_var
-        ).grid(row=0, column=0, padx=(0,12), sticky="ew")
+        ).grid(row=0, column=1, padx=(0, 12), sticky="ew")
 
-        self.character_image_button = ctk.CTkButton(
-            left, state="disabled", text="", width=48, height=48
-        )
-        self.character_image_button.grid(row=0, column=1, padx=(6,0))
-
-        # Ícones de ação no topo (com tooltip)
+        # --- Ícones do topo (com tooltip) ---
         actions = ctk.CTkFrame(right, fg_color="transparent")
         actions.grid(row=0, column=0)
 
@@ -211,8 +216,6 @@ class VirtualKeyboardApp(ctk.CTk):
             fg_color="#ff9f1c", hover_color="#ff9f1c", corner_radius=12,
             command=self.remove_last_image
         )
-        btn_back.grid(row=0, column=0, padx=6)
-        Hovertip(btn_back, "Backspace", hover_delay=300)
 
         # 🗑 Clear
         btn_clear = ctk.CTkButton(
@@ -220,8 +223,6 @@ class VirtualKeyboardApp(ctk.CTk):
             fg_color="#ef233c", hover_color="#ef233c", corner_radius=12,
             command=self.clear_selected_images
         )
-        btn_clear.grid(row=0, column=1, padx=6)
-        Hovertip(btn_clear, "Clear", hover_delay=300)
 
         # ⬇ Salvar PNG
         btn_save = ctk.CTkButton(
@@ -229,20 +230,18 @@ class VirtualKeyboardApp(ctk.CTk):
             fg_color="#2ec4b6", hover_color="#2ec4b6", corner_radius=12,
             command=self.export_images
         )
-        btn_save.grid(row=0, column=2, padx=6)
-        Hovertip(btn_save, "Salvar PNG", hover_delay=300)
 
-        
-        #btn_tips.grid(row=0, column=3, padx=6)
+        # Grid na ordem desejada: 💡, ↺, 🗑, ⬇
         btn_tips.grid(row=0, column=0, padx=6)
         btn_back.grid(row=0, column=1, padx=6)
         btn_clear.grid(row=0, column=2, padx=6)
         btn_save.grid(row=0, column=3, padx=6)
-        Hovertip(btn_tips, "Dicas de uso (F1)", hover_delay=300)
-        Hovertip(btn_back,  "Backspace (F2)",   hover_delay=300)
-        Hovertip(btn_clear, "Clear (F3)",       hover_delay=300)
-        Hovertip(btn_save,  "Salvar PNG (F4)",  hover_delay=300)
 
+        # Tooltips
+        Hovertip(btn_tips, "Dicas de uso (F1)", hover_delay=300)
+        Hovertip(btn_back, "Backspace (F2)", hover_delay=300)
+        Hovertip(btn_clear, "Clear (F3)", hover_delay=300)
+        Hovertip(btn_save, "Salvar PNG (F4)", hover_delay=300)
 
     # ---------- Entrada ----------
     def _build_input(self):
