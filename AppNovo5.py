@@ -22,9 +22,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PALETTE_MAX_COLS = 8  # número máximo de ícones por linha na palette
 
 # Auto-ajuste da palette
-ICON_MIN = 36   # tamanho mínimo do ícone
-ICON_MAX = 64   # tamanho máximo do ícone
-ICON_GAP = 6    # espaçamento horizontal usado na conta
+#ICON_MIN = 36   # tamanho mínimo do ícone
+#ICON_MAX = 64   # tamanho máximo do ícone
+#ICON_GAP = 6    # espaçamento horizontal usado na conta
 
 
 class ScrollableFrame(ctk.CTkFrame):
@@ -110,7 +110,7 @@ class VirtualKeyboardApp(ctk.CTk):
         # cache de imagens (CTkImage) para HiDPI
         self._img_cache = {}
         # tamanho atual aplicado nos botões da palette
-        self.current_icon_size = 48
+        self.current_icon_size = 32
         # debounce para não relayoutar em excesso
         self._relayout_id = None
 
@@ -150,6 +150,7 @@ class VirtualKeyboardApp(ctk.CTk):
     def _divider(self, parent):
         return ctk.CTkFrame(parent, fg_color=BORDER, height=2, corner_radius=1)
 
+
     def _build_header(self):
         header_card, header = self._card(self, pad=(16,12))
         header_card.grid(row=0, column=0, sticky="ew", padx=12, pady=(12,8))
@@ -157,28 +158,54 @@ class VirtualKeyboardApp(ctk.CTk):
 
         left  = ctk.CTkFrame(header, fg_color="transparent")
         right = ctk.CTkFrame(header, fg_color="transparent")
-        left.grid_columnconfigure(0, weight=1)  # combo expande
-
         left.grid(row=0, column=0, sticky="w", padx=(2,0))
         right.grid(row=0, column=1, sticky="e")
 
-        # Character
-        self._field(left, "Character",
-                    ctk.CTkComboBox, values=self.all_characters, width=220,
-                    variable=self.character_var).grid(row=0, column=0, padx=(0,12), sticky="ew")
+        # Campo Character (combo) + retrato
+        self._field(
+            left, "Character",
+            ctk.CTkComboBox,
+            values=self.all_characters, width=220,
+            variable=self.character_var
+        ).grid(row=0, column=0, padx=(0,12), sticky="ew")
 
-        # retrato do personagem ao lado do combo Character
         self.character_image_button = ctk.CTkButton(
             left, state="disabled", text="", width=48, height=48
         )
-        self.character_image_button.grid(row=0, column=1, padx=(6, 0))
+        self.character_image_button.grid(row=0, column=1, padx=(6,0))
 
-        # ações (placeholders)
+        # ÍCONES DO TOPO (com tooltip) — fazem o mesmo que os botões de baixo
         actions = ctk.CTkFrame(right, fg_color="transparent")
         actions.grid(row=0, column=0)
-        for i, (txt, col) in enumerate([("↺", "#ff9f1c"), ("🗑", "#ef233c"), ("⬇", "#2ec4b6")]):
-            ctk.CTkButton(actions, text=txt, width=38, height=38,
-                          fg_color=col, hover_color=col, corner_radius=12).grid(row=0, column=i, padx=6)
+
+        # ↺ Backspace
+        btn_back = ctk.CTkButton(
+            actions, text="↺", width=38, height=38,
+            fg_color="#ff9f1c", hover_color="#ff9f1c", corner_radius=12,
+            command=self.remove_last_image
+        )
+        btn_back.grid(row=0, column=0, padx=6)
+        Hovertip(btn_back, "Backspace", hover_delay=300)
+
+        # 🗑 Clear
+        btn_clear = ctk.CTkButton(
+            actions, text="🗑", width=38, height=38,
+            fg_color="#ef233c", hover_color="#ef233c", corner_radius=12,
+            command=self.clear_selected_images
+        )
+        btn_clear.grid(row=0, column=1, padx=6)
+        Hovertip(btn_clear, "Clear", hover_delay=300)
+
+        # ⬇ Salvar PNG
+        btn_save = ctk.CTkButton(
+            actions, text="⬇", width=38, height=38,
+            fg_color="#2ec4b6", hover_color="#2ec4b6", corner_radius=12,
+            command=self.export_images
+        )
+        btn_save.grid(row=0, column=2, padx=6)
+        Hovertip(btn_save, "Salvar PNG", hover_delay=300)
+   
+        
 
     def _build_input(self):
         card, inner = self._card(self)
@@ -222,14 +249,14 @@ class VirtualKeyboardApp(ctk.CTk):
         right_inner.grid_rowconfigure(1, weight=1)
         right_inner.grid_columnconfigure(0, weight=1)
 
-        actions = ctk.CTkFrame(right_inner, fg_color="transparent")
+        '''actions = ctk.CTkFrame(right_inner, fg_color="transparent")
         actions.grid(row=2, column=0, sticky="e", padx=10, pady=(0,10))
         ctk.CTkButton(actions, text="Backspace",
                       command=lambda: self.remove_last_image()).grid(row=0, column=0, padx=4)
         ctk.CTkButton(actions, text="Clear",
                       command=lambda: self.clear_selected_images()).grid(row=0, column=1, padx=4)
         ctk.CTkButton(actions, text="Salvar PNG", fg_color=ACCENT,
-                      command=lambda: self.export_images()).grid(row=0, column=2, padx=8)
+                      command=lambda: self.export_images()).grid(row=0, column=2, padx=8)'''
 
         # Rodapé
         footer = ctk.CTkLabel(self, text="Tekken 8 Notation Generator • Create and share your combo notations",
