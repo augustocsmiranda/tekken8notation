@@ -233,7 +233,11 @@ class VirtualKeyboardApp(ctk.CTk):
         Hovertip(btn_save, "Salvar PNG", hover_delay=300)
 
         
-        btn_tips.grid(row=0, column=3, padx=6)
+        #btn_tips.grid(row=0, column=3, padx=6)
+        btn_tips.grid(row=0, column=0, padx=6)
+        btn_back.grid(row=0, column=1, padx=6)
+        btn_clear.grid(row=0, column=2, padx=6)
+        btn_save.grid(row=0, column=3, padx=6)
         Hovertip(btn_tips, "Dicas de uso (F1)", hover_delay=300)
         Hovertip(btn_back,  "Backspace (F2)",   hover_delay=300)
         Hovertip(btn_clear, "Clear (F3)",       hover_delay=300)
@@ -340,7 +344,46 @@ class VirtualKeyboardApp(ctk.CTk):
             if data['Character'] == character_name:
                 return data['Moves']
         return None
+    ###
+    def _build_notations_from_csv_pretty(
+    self, *, two_cols=True, max_items=None,
+    move_key="Move", name_key="Name",
+    move_min=2, move_max=8, name_min=8, name_max=32
+):
+        """Gera linhas alinhadas a partir do CSV."""
+        pairs = []
+        for row in self.MoveDict:
+            m = (row.get(move_key) or "").strip()
+            n = (row.get(name_key) or "").strip()
+            if m and n:
+                pairs.append((m, n))
+        if max_items is not None:
+            pairs = pairs[:max_items]
+        if not pairs:
+            return ""
 
+    # larguras ideais (com limites para não estourar)
+        move_w = max(move_min, min(move_max, max(len(m) for m, _ in pairs)))
+        name_w = max(name_min, min(name_max, max(len(n) for _, n in pairs)))
+
+        if not two_cols:
+                return "".join(f"    • {m:<{move_w}}  -> {n}\n" for m, n in pairs)
+
+            # duas colunas lado a lado
+        lines = []
+        for i in range(0, len(pairs), 2):
+                l = pairs[i]
+                r = pairs[i+1] if i+1 < len(pairs) else None
+                if r:
+                    lines.append(
+                        f"    • {l[0]:<{move_w}}  -> {l[1]:<{name_w}}"
+                        f" | • {r[0]:<{move_w}}  -> {r[1]}\n"
+                    )
+                else:
+                    lines.append(f"    • {l[0]:<{move_w}}  -> {l[1]}\n")
+        return "".join(lines)
+
+    ###
     # ---------- Atualiza botões do personagem ----------
     def update_character_images(self, *_):
         selected_character = self.character_var.get().strip()
@@ -721,203 +764,45 @@ class VirtualKeyboardApp(ctk.CTk):
 
     # ---------- Dicas ----------
     def show_tips(self):
-        """Abre uma janelinha com dicas rápidas (fallback para messagebox)."""
-        tips = (
-            "• Digite a notação na caixa (com espaços em entre cada comando. separe linhas por vírgula(se necessário)).\n"
+        """Abre a janela de dicas, com notations em 2 colunas alinhadas."""
+        header = (
+            "• Digite a notação na caixa (separe comandos com espaço; use vírgula para nova linha).\n"
             "• Clique nos ícones da Palette para adicionar ao Preview.\n"
-            "• F1 abre estas dicas.\n"
-            "• F2 ↺ remove o último comando, 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
-            "• F3 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
-            "• F4 ⬇ salva PNG.\n"
-            "• Escolha o personagem e clique no retrato para inserir o ícone.\n"
+            "• Atalhos: F1 = Dicas | F2 = Backspace | F3 = Clear | F4 = Salvar PNG\n"
             "• R1..R4: 8 por linha; R5+: 12 por linha (costurando grupos).\n"
             "\n"
             "NOTATIONS TO TYPE\n"
-                "    • f  → Front\n"
-                "    • b  → Back\n"
-                "    • u  → Up\n"
-                "    • d  → Down\n"
-                "    • db → Down Back\n"
-                "    • df → Down Front\n"
-                "    • uf → Up Front\n"
-                "    • ub → Up Back\n"
-                "    • fh  → Front Hold\n"
-                "    • bh  → Back Hold\n"
-                "    • uh  → Up Hold\n"
-                "    • dh  → Down Hold\n"
-                "    • dbh → Down Back Hold\n"
-                "    • dfh → Down Front Hold\n"
-                "    • ufh → Up Front Hold\n"
-                "    • ubh → Up Back Hold\n"
-                "    • 1   → Left Punch\n"
-                "    • 2   → Right Punch\n"
-                "    • 3   → Left Kick\n"
-                "    • 4   → Right Kick\n"
-                "    • 12  → Left Punch + Right Punch\n"
-                "    • 34  → Left Kick + Right Kick\n"
-                "    • 13  → Left Throw\n"
-                "    • 24  → Right Throw\n"
-                "    • 123  → Left Punch + Right Punch + Left Kick\n"
-                "    • 124  → Left Punch + Right Punch + Right Kick\n"
-                "    • 134  → Left Punch + Left Kick + Right Kick\n"
-                "    • 234  → Right Punch + Left Kick + Right Kick\n"
-                "    • 1234 → Ki Charge\n"
-
-                "    • AIR  → Airborne\n"
-                "    • BB!  → Balcony Break\n"
-                "    • BT  → Backturned\n"
-                "    • CC  → Crouch Cancel\n"
-                "    • CH  → Counter Hit\n"
-                "    • CL  → Clean Hit\n"
-                "    • DASH  → Dash\n"
-                "    • DLAY  → Delay\n"
-                "    • FB!  → Floor Break\n"
-                "    • FBL!  → Floor Blast\n"
-                "    • FC  → Full Crouch\n"
-                "    • FDFA  → Face Down, Feet Away\n"
-                "    • FDFT  → Face Down, Feet Towards\n"
-                "    • FUFA  → Face Up, Feet Away\n"
-                "    • FUFT  → Face Up, Feet Towards\n"
-                "    • HEAT  → Heat State\n"
-                "    • HEATENGAGE  → Heat Engage\n"
-                "    • JF  → Just Frame\n"
-                "    • KND  → Knockdown\n"
-                "    • LP  → Low Parry\n"
-                "    • RAGE  → Rage State\n"
-                "    • SS  → Sidestep\n"
-                "    • SSL  → Sidestep Left\n"
-                "    • SSR  → Sidestep Right\n"
-                "    • SWL  → Sidewalk Left\n"
-                "    • SWR  → Sidewalk Right\n"
-                "    • T!  → Tornado Spin\n"
-                "    • WB!  → Wall Break\n"
-                "    • WBL!  → Wall Blast\n"
-                "    • WBO!  → Wall Bound\n"
-                "    • WR  → While Running\n"
-                "    • WS  → While Standing\n"
-                "    • hFB!  → Hard Floor Break\n"
-                "    • hFBL!  → Hard Floor Blast\n"
-                "    • hFC  → Half Crouch\n"
-                "    • hWB!  → Hard Wall Break\n"
-                "    • iWS  → Intant While Standing\n"
-                "    • ALB  → Quick Spin\n"
-                "    • AOP  → Phoenix\n"
-                "    • BKP  → Backup\n"
-                "    • BOK  → Fo Bu\n"
-                "    • BOT  → Boot\n"
-                "    • CAT  → Cat Stance\n"
-                "    • CD_All  → Crouch Dash\n"
-                "    • CD_Jin  → Breaking Step\n"
-                "    • CD_King  → Beast Step\n"
-                "    • CD_Leo  → Jin Bu\n"
-                "    • CRO  → Mourning Crow\n"
-                "    • CS  → Cormorant Step\n"
-                "    • DBT  → Dual Boot\n"
-                "    • DCK  → Ducking\n"
-                "    • DEN  → Dynamic Entry\n"
-                "    • DES  → Destructive Form\n"
-                "    • DEW  → Dew Glide\n"
-                "    • DGF  → Manji Dragonfly\n"
-                "    • DPD  → Deep Dive\n"
-                "    • DSS  → Dragon Charge\n"
-                "    • DVK  → Devil Form\n"
-                "    • EWGF  → Electric Wind God Fist\n"
-                "    • EXD  → Ducking In\n"
-                "    • FLE  → Flea\n"
-                "    • FLK  → Flicker Stance\n"
-                "    • FLY  → Fly\n"
-                "    • GEN  → Genjitsu\n"
-                "    • GMH  → Gamma Howl\n"
-                "    • HAE  → Heaven and Earth\n"
-                "    • HBS  → Hunting Bear Stance\n"
-                "    • HMS  → Hitman Stance\n"
-                "    • HPF  → Haze Palm Fist\n"
-                "    • HRM  → Hermit\n"
-                "    • HRS  → Horse Stance\n"
-                "    • HSP  → Bananeira (Handstand Position)\n"
-                "    • HYP  → Hypnotist\n"
-                "    • IAI  → Iai Stance\n"
-                "    • IND  → Indian Stance\n"
-                "    • IZU  → Izumo\n"
-                "    • JGR  → Jaguar Sprint/Jaguar Run\n"
-                "    • JGS  → Jaguar Step\n"
-                "    • KIN  → Kincho\n"
-                "    • KNK  → Jin Ji Du Li\n"
-                "    • KNP  → Kenpo Step (Deceptive Step)\n"
-                "    • LCT  → Leg Cutter\n"
-                "    • LEN  → Limited Entry\n"
-                "    • LFF  → Left Foot Forward\n"
-                "    • LFS  → Left Flamingo Stance\n"
-                "    • LIB  → Libertador\n"
-                "    • LNH  → Lionheart\n"
-                "    • LWV  → Ducking Left\n"
-                "    • MD1  → Mandinga (Lvl 1)\n"
-                "    • MD2  → Mandinga (Lvl 2)\n"
-                "    • MED  → Meditation\n"
-                "    • MIA  → Miare\n"
-                "    • MNT  → Mantis Stance\n"
-                "    • MS  → Mist Step\n"
-                "    • NIM  → Nimble Shift\n"
-                "    • NSS  → No Sword Stance (Mutou no Kiwami)\n"
-                "    • PKB  → Peekaboo\n"
-                "    • PRF  → Perfumer\n"
-                "    • RAB  → Feisty Rabbit\n"
-                "    • RFF  → Right Foot Forward\n"
-                "    • RFS  → Right Flamingo Stance\n"
-                "    • RLX  → Negativa (Relaxed Position)\n"
-                "    • ROL  → Bear Roll\n"
-                "    • RWV  → Ducking Right\n"
-                "    • SCR  → Scarecrow Stance\n"
-                "    • SEN_Lars  → Silent Entry\n"
-                "    • SEN  → Sento\n"
-                "    • SIT  → Sit Down\n"
-                "    • SLS  → Slither Step\n"
-                "    • SNE  → Snake Eyes\n"
-                "    • SNK_Dragunov  → Sneak\n"
-                "    • SNK_Shaheen  → Stealth Step\n"
-                "    • SSH  → Senshin\n"
-                "    • STB  → Starburst\n"
-                "    • STC  → Shifting Clouds\n"
-                "    • SWA  → Sway\n"
-                "    • SWY  → Sway\n"
-                "    • SZN  → Soulzone\n"
-                "    • TRT  → Tarantula Stance\n"
-                "    • UNS  → Unsoku\n"
-                "    • WDS  → Wind Step\n"
-                "    • WGF  → Wind God Fist\n"
-                "    • WGS  → Wind God Step\n"
-                "    • WLF  → Stalking Wolf Stance\n"
-                "    • HW  → Heaven's Wrath\n"
-                "    • ZEN  → Zanshin\n"
-                "    • CHIP  → Chip Damage\n"
-                "    • HOMING  → Homing\n"
-                "    • WC  → While Crouching\n"
-                "    • MDASH  → Micro Dash\n"
-                "    • HOLD  → Hold Attack\n"
-                "    • POWERCRUSH  → Power Crush\n"
-
-
         )
+
         try:
             top = ctk.CTkToplevel(self)
             top.title("Dicas")
-            top.geometry("800x600")
+            top.geometry("760x560")
             top.transient(self)
             top.grab_set()
             top.configure(fg_color=CARD)
 
-            ctk.CTkLabel(top, text="Dicas rápidas", font=("Segoe UI", 18, "bold"), text_color=TEXT)\
-               .pack(pady=(16, 8))
+            ctk.CTkLabel(
+                top, text="Dicas rápidas", font=("Segoe UI", 18, "bold"), text_color=TEXT
+            ).pack(pady=(16, 8))
 
-            box = ctk.CTkTextbox(top, width=480, height=240)
+            # fonte monoespaçada e sem quebra automática para manter colunas alinhadas
+            mono = ctk.CTkFont(family="Consolas", size=13)  # ou "Courier New"
+            box = ctk.CTkTextbox(top, width=720, height=420, font=mono, wrap="none")
             box.pack(padx=16, pady=8, fill="both", expand=True)
-            box.insert("1.0", tips)
+
+            box.insert("1.0", header)
+            box.insert("end", self._build_notations_from_csv_pretty(two_cols=True))
             box.configure(state="disabled")
 
             ctk.CTkButton(top, text="Fechar", fg_color=ACCENT, command=top.destroy)\
-               .pack(pady=(0, 16))
+            .pack(pady=(0, 16))
+
         except Exception:
-            messagebox.showinfo("Dicas", tips)
+            # fallback simples (sem alinhamento)
+            msg = header + self._build_notations_from_csv_pretty(two_cols=False)
+            messagebox.showinfo("Dicas", msg)
+
 
     # ---------- Exportar PNG ----------
     def export_images(self):
