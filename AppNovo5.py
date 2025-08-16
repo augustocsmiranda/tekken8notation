@@ -138,6 +138,11 @@ class VirtualKeyboardApp(ctk.CTk):
 
         # atalho para dicas
         self.bind("<F1>", lambda e: self.show_tips())
+        # self.bind("<F2>", lambda e: self.remove_last_image())   # Backspace
+        self.bind("<F2>", self._hotkey_backspace)   # Backspace: texto ou preview
+        self.bind("<F3>", lambda e: self.clear_selected_images())  # Clear
+        self.bind("<F4>", lambda e: self.export_images())          # Salvar PNG
+
 
         # inicia auto-resize da palette
         self.after(120, self._relayout_palette)
@@ -193,6 +198,13 @@ class VirtualKeyboardApp(ctk.CTk):
         actions = ctk.CTkFrame(right, fg_color="transparent")
         actions.grid(row=0, column=0)
 
+        # 💡 Dicas
+        btn_tips = ctk.CTkButton(
+            actions, text="💡", width=38, height=38,
+            fg_color="#7c3aed", hover_color="#6d28d9", corner_radius=12,
+            command=self.show_tips
+        )
+
         # ↺ Backspace
         btn_back = ctk.CTkButton(
             actions, text="↺", width=38, height=38,
@@ -220,14 +232,13 @@ class VirtualKeyboardApp(ctk.CTk):
         btn_save.grid(row=0, column=2, padx=6)
         Hovertip(btn_save, "Salvar PNG", hover_delay=300)
 
-        # 💡 Dicas
-        btn_tips = ctk.CTkButton(
-            actions, text="💡", width=38, height=38,
-            fg_color="#7c3aed", hover_color="#6d28d9", corner_radius=12,
-            command=self.show_tips
-        )
+        
         btn_tips.grid(row=0, column=3, padx=6)
         Hovertip(btn_tips, "Dicas de uso (F1)", hover_delay=300)
+        Hovertip(btn_back,  "Backspace (F2)",   hover_delay=300)
+        Hovertip(btn_clear, "Clear (F3)",       hover_delay=300)
+        Hovertip(btn_save,  "Salvar PNG (F4)",  hover_delay=300)
+
 
     # ---------- Entrada ----------
     def _build_input(self):
@@ -636,6 +647,22 @@ class VirtualKeyboardApp(ctk.CTk):
             self.selected_images_lines = [[image_path]]
         self._update_selected_images_display()
 
+    def _hotkey_backspace(self, event=None):
+        """F2: apaga 1 caractere no Entry; se estiver vazio, remove o último ícone do preview."""
+        try:
+            s = self.string_input.get()
+        except Exception:
+            s = ""
+        if s:
+            # apaga o último caractere
+            self.string_input.delete(len(s)-1, tk.END)
+            # atualiza o preview imediatamente (sem debounce)
+            self._parse_and_update()
+        else:
+            # se a caixa já estiver vazia, usa o backspace do preview
+            self.remove_last_image()
+        return "break"
+
     def remove_last_image(self):
         if self.selected_images_lines:
             if self.selected_images_lines[-1]:
@@ -698,12 +725,12 @@ class VirtualKeyboardApp(ctk.CTk):
         tips = (
             "• Digite a notação na caixa (com espaços em entre cada comando. separe linhas por vírgula(se necessário)).\n"
             "• Clique nos ícones da Palette para adicionar ao Preview.\n"
-            "• ↺ remove o último comando, 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
-            "• 🗑 limpa todo Preview (e a caixa texto), ⬇ salva PNG.\n"
-            "• ⬇ salva PNG.\n"
+            "• F1 abre estas dicas.\n"
+            "• F2 ↺ remove o último comando, 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
+            "• F3 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
+            "• F4 ⬇ salva PNG.\n"
             "• Escolha o personagem e clique no retrato para inserir o ícone.\n"
             "• R1..R4: 8 por linha; R5+: 12 por linha (costurando grupos).\n"
-            "• F1 abre estas dicas.\n"
             "\n"
             "NOTATIONS TO TYPE\n"
                 "    • f  → Front\n"
@@ -735,6 +762,140 @@ class VirtualKeyboardApp(ctk.CTk):
                 "    • 134  → Left Punch + Left Kick + Right Kick\n"
                 "    • 234  → Right Punch + Left Kick + Right Kick\n"
                 "    • 1234 → Ki Charge\n"
+
+                "    • AIR  → Airborne\n"
+                "    • BB!  → Balcony Break\n"
+                "    • BT  → Backturned\n"
+                "    • CC  → Crouch Cancel\n"
+                "    • CH  → Counter Hit\n"
+                "    • CL  → Clean Hit\n"
+                "    • DASH  → Dash\n"
+                "    • DLAY  → Delay\n"
+                "    • FB!  → Floor Break\n"
+                "    • FBL!  → Floor Blast\n"
+                "    • FC  → Full Crouch\n"
+                "    • FDFA  → Face Down, Feet Away\n"
+                "    • FDFT  → Face Down, Feet Towards\n"
+                "    • FUFA  → Face Up, Feet Away\n"
+                "    • FUFT  → Face Up, Feet Towards\n"
+                "    • HEAT  → Heat State\n"
+                "    • HEATENGAGE  → Heat Engage\n"
+                "    • JF  → Just Frame\n"
+                "    • KND  → Knockdown\n"
+                "    • LP  → Low Parry\n"
+                "    • RAGE  → Rage State\n"
+                "    • SS  → Sidestep\n"
+                "    • SSL  → Sidestep Left\n"
+                "    • SSR  → Sidestep Right\n"
+                "    • SWL  → Sidewalk Left\n"
+                "    • SWR  → Sidewalk Right\n"
+                "    • T!  → Tornado Spin\n"
+                "    • WB!  → Wall Break\n"
+                "    • WBL!  → Wall Blast\n"
+                "    • WBO!  → Wall Bound\n"
+                "    • WR  → While Running\n"
+                "    • WS  → While Standing\n"
+                "    • hFB!  → Hard Floor Break\n"
+                "    • hFBL!  → Hard Floor Blast\n"
+                "    • hFC  → Half Crouch\n"
+                "    • hWB!  → Hard Wall Break\n"
+                "    • iWS  → Intant While Standing\n"
+                "    • ALB  → Quick Spin\n"
+                "    • AOP  → Phoenix\n"
+                "    • BKP  → Backup\n"
+                "    • BOK  → Fo Bu\n"
+                "    • BOT  → Boot\n"
+                "    • CAT  → Cat Stance\n"
+                "    • CD_All  → Crouch Dash\n"
+                "    • CD_Jin  → Breaking Step\n"
+                "    • CD_King  → Beast Step\n"
+                "    • CD_Leo  → Jin Bu\n"
+                "    • CRO  → Mourning Crow\n"
+                "    • CS  → Cormorant Step\n"
+                "    • DBT  → Dual Boot\n"
+                "    • DCK  → Ducking\n"
+                "    • DEN  → Dynamic Entry\n"
+                "    • DES  → Destructive Form\n"
+                "    • DEW  → Dew Glide\n"
+                "    • DGF  → Manji Dragonfly\n"
+                "    • DPD  → Deep Dive\n"
+                "    • DSS  → Dragon Charge\n"
+                "    • DVK  → Devil Form\n"
+                "    • EWGF  → Electric Wind God Fist\n"
+                "    • EXD  → Ducking In\n"
+                "    • FLE  → Flea\n"
+                "    • FLK  → Flicker Stance\n"
+                "    • FLY  → Fly\n"
+                "    • GEN  → Genjitsu\n"
+                "    • GMH  → Gamma Howl\n"
+                "    • HAE  → Heaven and Earth\n"
+                "    • HBS  → Hunting Bear Stance\n"
+                "    • HMS  → Hitman Stance\n"
+                "    • HPF  → Haze Palm Fist\n"
+                "    • HRM  → Hermit\n"
+                "    • HRS  → Horse Stance\n"
+                "    • HSP  → Bananeira (Handstand Position)\n"
+                "    • HYP  → Hypnotist\n"
+                "    • IAI  → Iai Stance\n"
+                "    • IND  → Indian Stance\n"
+                "    • IZU  → Izumo\n"
+                "    • JGR  → Jaguar Sprint/Jaguar Run\n"
+                "    • JGS  → Jaguar Step\n"
+                "    • KIN  → Kincho\n"
+                "    • KNK  → Jin Ji Du Li\n"
+                "    • KNP  → Kenpo Step (Deceptive Step)\n"
+                "    • LCT  → Leg Cutter\n"
+                "    • LEN  → Limited Entry\n"
+                "    • LFF  → Left Foot Forward\n"
+                "    • LFS  → Left Flamingo Stance\n"
+                "    • LIB  → Libertador\n"
+                "    • LNH  → Lionheart\n"
+                "    • LWV  → Ducking Left\n"
+                "    • MD1  → Mandinga (Lvl 1)\n"
+                "    • MD2  → Mandinga (Lvl 2)\n"
+                "    • MED  → Meditation\n"
+                "    • MIA  → Miare\n"
+                "    • MNT  → Mantis Stance\n"
+                "    • MS  → Mist Step\n"
+                "    • NIM  → Nimble Shift\n"
+                "    • NSS  → No Sword Stance (Mutou no Kiwami)\n"
+                "    • PKB  → Peekaboo\n"
+                "    • PRF  → Perfumer\n"
+                "    • RAB  → Feisty Rabbit\n"
+                "    • RFF  → Right Foot Forward\n"
+                "    • RFS  → Right Flamingo Stance\n"
+                "    • RLX  → Negativa (Relaxed Position)\n"
+                "    • ROL  → Bear Roll\n"
+                "    • RWV  → Ducking Right\n"
+                "    • SCR  → Scarecrow Stance\n"
+                "    • SEN_Lars  → Silent Entry\n"
+                "    • SEN  → Sento\n"
+                "    • SIT  → Sit Down\n"
+                "    • SLS  → Slither Step\n"
+                "    • SNE  → Snake Eyes\n"
+                "    • SNK_Dragunov  → Sneak\n"
+                "    • SNK_Shaheen  → Stealth Step\n"
+                "    • SSH  → Senshin\n"
+                "    • STB  → Starburst\n"
+                "    • STC  → Shifting Clouds\n"
+                "    • SWA  → Sway\n"
+                "    • SWY  → Sway\n"
+                "    • SZN  → Soulzone\n"
+                "    • TRT  → Tarantula Stance\n"
+                "    • UNS  → Unsoku\n"
+                "    • WDS  → Wind Step\n"
+                "    • WGF  → Wind God Fist\n"
+                "    • WGS  → Wind God Step\n"
+                "    • WLF  → Stalking Wolf Stance\n"
+                "    • HW  → Heaven's Wrath\n"
+                "    • ZEN  → Zanshin\n"
+                "    • CHIP  → Chip Damage\n"
+                "    • HOMING  → Homing\n"
+                "    • WC  → While Crouching\n"
+                "    • MDASH  → Micro Dash\n"
+                "    • HOLD  → Hold Attack\n"
+                "    • POWERCRUSH  → Power Crush\n"
+
 
         )
         try:
