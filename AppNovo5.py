@@ -2,7 +2,7 @@ import os
 import csv
 import ctypes
 import re
-import tkinter as tk  # uso p/ messagebox e utilitários
+import tkinter as tk  # messagebox e utilitários
 from tkinter import messagebox
 from PIL import Image
 from idlelib.tooltip import Hovertip
@@ -19,17 +19,17 @@ ACCENT  = "#7c3aed"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Grade da palette
-PALETTE_MAX_COLS    = 8   # R1..R4 = 8 por linha
-SECONDARY_MAX_COLS  = 12  # R5+   = 12 por linha (costurando)
+PALETTE_MAX_COLS    = 8    # R1..R4 = 8 por linha
+SECONDARY_MAX_COLS  = 12   # R5+    = 12 por linha (costurando)
 
 # Auto-ajuste da palette
-ICON_MIN = 24   # tamanho mínimo do ícone
-ICON_MAX = 32   # tamanho máximo do ícone
-ICON_GAP = 6    # espaçamento horizontal usado na conta
+ICON_MIN = 24
+ICON_MAX = 32
+ICON_GAP = 6
 
 
 class ScrollableFrame(ctk.CTkFrame):
-    """Paleta com rolagem vertical para muitos ícones."""
+    """Paleta com rolagem vertical para muitos ícones (só vertical)."""
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
         self.canvas = tk.Canvas(self, highlightthickness=0, bd=0, bg=CARD)
@@ -53,7 +53,7 @@ class VirtualKeyboardApp(ctk.CTk):
 
         # ---- Janela / tema ----
         self.title("Notation Image Generator")
-        self.geometry("1600x900")  # tamanho inicial
+        self.geometry("1600x900")
         ctk.set_appearance_mode("dark")
         self.configure(fg_color=BG)
         self.grid_columnconfigure(0, weight=1)
@@ -99,7 +99,7 @@ class VirtualKeyboardApp(ctk.CTk):
         self.move_to_name  = {row["Move"].upper(): row["Name"]  for row in self.MoveDict}
 
         # Estado dinâmico
-        self.selected_images_lines = []  # lista de linhas; cada linha é lista de paths absolutos
+        self.selected_images_lines = []          # linhas selecionadas no preview
         self.include_dark = tk.BooleanVar(value=False)
         self.images_folder_var = tk.StringVar(value="T8 Default")
         self.character_var = tk.StringVar(value="None")
@@ -109,22 +109,24 @@ class VirtualKeyboardApp(ctk.CTk):
 
         # cache de imagens (CTkImage) para HiDPI
         self._img_cache = {}
-        # tamanho atual aplicado nos botões da palette
         self.current_icon_size = 32
-        # debounce para não relayoutar em excesso
         self._relayout_id = None
+
+        # Flicker control
+        self._suspend_relayout = False
+        self._last_palette_width = 0
 
         # widgets
         self.image_frame = None
         self.preview_frame = None
         self.string_input = None
 
-        # ---- CONSTRÓI UI ESTILIZADA ----
+        # ---- CONSTRÓI UI ----
         self._build_header()
         self._build_input()
         self._build_center()
 
-        # liga traces (depois que os combos existem)
+        # liga traces
         self.images_folder_var.trace_add("write", self.load_and_reload_assets)
         self.character_var.trace_add("write", self.update_character_images)
 
@@ -133,7 +135,12 @@ class VirtualKeyboardApp(ctk.CTk):
         self.update_character_images()
         self._update_selected_images_display()
         self._update_preview_field()
-        self.after(100, self._relayout_palette)
+
+        # atalho para dicas
+        self.bind("<F1>", lambda e: self.show_tips())
+
+        # inicia auto-resize da palette
+        self.after(120, self._relayout_palette)
 
     # ---------- Helpers de UI ----------
     def _card(self, parent, pad=(10,10)):
@@ -169,7 +176,7 @@ class VirtualKeyboardApp(ctk.CTk):
         left.grid(row=0, column=0, sticky="w", padx=(2,0))
         right.grid(row=0, column=1, sticky="e")
 
-        # Campo Character (combo) + retrato
+        # Character + retrato
         self._field(
             left, "Character",
             ctk.CTkComboBox,
@@ -182,7 +189,7 @@ class VirtualKeyboardApp(ctk.CTk):
         )
         self.character_image_button.grid(row=0, column=1, padx=(6,0))
 
-        # ÍCONES DO TOPO (com tooltip) — fazem o mesmo que os botões de baixo
+        # Ícones de ação no topo (com tooltip)
         actions = ctk.CTkFrame(right, fg_color="transparent")
         actions.grid(row=0, column=0)
 
@@ -190,7 +197,7 @@ class VirtualKeyboardApp(ctk.CTk):
         btn_back = ctk.CTkButton(
             actions, text="↺", width=38, height=38,
             fg_color="#ff9f1c", hover_color="#ff9f1c", corner_radius=12,
-            command=lambda: self.remove_last_image()
+            command=self.remove_last_image
         )
         btn_back.grid(row=0, column=0, padx=6)
         Hovertip(btn_back, "Backspace", hover_delay=300)
@@ -199,7 +206,7 @@ class VirtualKeyboardApp(ctk.CTk):
         btn_clear = ctk.CTkButton(
             actions, text="🗑", width=38, height=38,
             fg_color="#ef233c", hover_color="#ef233c", corner_radius=12,
-            command=lambda: self.clear_selected_images()
+            command=self.clear_selected_images
         )
         btn_clear.grid(row=0, column=1, padx=6)
         Hovertip(btn_clear, "Clear", hover_delay=300)
@@ -208,23 +215,33 @@ class VirtualKeyboardApp(ctk.CTk):
         btn_save = ctk.CTkButton(
             actions, text="⬇", width=38, height=38,
             fg_color="#2ec4b6", hover_color="#2ec4b6", corner_radius=12,
-            command=lambda: self.export_images()
+            command=self.export_images
         )
         btn_save.grid(row=0, column=2, padx=6)
         Hovertip(btn_save, "Salvar PNG", hover_delay=300)
 
-    # ---------- Entrada de notação ----------
+        # 💡 Dicas
+        btn_tips = ctk.CTkButton(
+            actions, text="💡", width=38, height=38,
+            fg_color="#7c3aed", hover_color="#6d28d9", corner_radius=12,
+            command=self.show_tips
+        )
+        btn_tips.grid(row=0, column=3, padx=6)
+        Hovertip(btn_tips, "Dicas de uso (F1)", hover_delay=300)
+
+    # ---------- Entrada ----------
     def _build_input(self):
         card, inner = self._card(self)
         card.grid(row=1, column=0, sticky="ew", padx=12, pady=(0,10))
         inner.grid_columnconfigure(0, weight=1)
+
         self.string_input = ctk.CTkEntry(inner, placeholder_text="Digite sua notação aqui...",
                                          height=56, corner_radius=12)
         self.string_input.grid(row=0, column=0, sticky="ew", padx=8, pady=8)
         self.string_input.bind("<KeyRelease>", self.process_string_input)
         self._debounce_id = None
 
-    # ---------- Centro (Palette + Preview) ----------
+    # ---------- Centro ----------
     def _build_center(self):
         center = ctk.CTkFrame(self, fg_color="transparent")
         center.grid(row=2, column=0, sticky="nsew", padx=12, pady=4)
@@ -232,20 +249,19 @@ class VirtualKeyboardApp(ctk.CTk):
         center.grid_columnconfigure(1, weight=1, uniform="col")
         center.grid_rowconfigure(0, weight=1)
 
-        # LEFT: Paleta
+        # LEFT: Palette
         left_card, left_inner = self._card(center)
         left_card.grid(row=0, column=0, sticky="nsew", padx=(0,8), pady=(0,8))
         self._title(left_inner, "Palette").grid(row=0, column=0, sticky="w", padx=10, pady=(10,8))
 
         self.palette_scroll = ScrollableFrame(left_inner)
-        # relayout quando o container mudar de tamanho/conteúdo
-        self.palette_scroll.bind("<Configure>", lambda e: self._relayout_palette())
-        self.palette_scroll.inner.bind("<Configure>", lambda e: self._relayout_palette())
         self.palette_scroll.grid(row=1, column=0, sticky="nsew", padx=10)
         left_inner.grid_rowconfigure(1, weight=1)
         left_inner.grid_columnconfigure(0, weight=1)
+        self.image_frame = self.palette_scroll.inner
 
-        self.image_frame = self.palette_scroll.inner  # onde coloco os botões
+        # Reage somente a resize real da janela (evita flicker)
+        self.bind("<Configure>", self._on_window_resize)
 
         # RIGHT: Preview
         right_card, right_inner = self._card(center)
@@ -257,14 +273,12 @@ class VirtualKeyboardApp(ctk.CTk):
         right_inner.grid_rowconfigure(1, weight=1)
         right_inner.grid_columnconfigure(0, weight=1)
 
-        # Rodapé
         footer = ctk.CTkLabel(self, text="Tekken 8 Notation Generator • Create and share your combo notations",
                               text_color=SUBTXT)
         footer.grid(row=3, column=0, pady=(2, 12))
 
     # ---------- Imagens (CTkImage) ----------
     def _get_ctk_image(self, path, size):
-        """Retorna um ctk.CTkImage (cacheado) para usar em CTkButton/CTkLabel."""
         key = (path, size)
         if key in self._img_cache:
             return self._img_cache[key]
@@ -277,7 +291,6 @@ class VirtualKeyboardApp(ctk.CTk):
 
     # ---------- Entrada: parsing com debounce ----------
     def process_string_input(self, event=None):
-        """Dispara parsing com debounce para evitar recomputar a cada tecla."""
         if getattr(self, "_debounce_id", None):
             try:
                 self.after_cancel(self._debounce_id)
@@ -287,7 +300,6 @@ class VirtualKeyboardApp(ctk.CTk):
 
     def _parse_and_update(self):
         input_string = self.string_input.get().upper().strip()
-        # separa por linhas (vírgula) e limpa vazios
         line_sequences = [seg for seg in (s.strip() for s in input_string.split(',')) if seg]
 
         new_lines = []
@@ -295,14 +307,13 @@ class VirtualKeyboardApp(ctk.CTk):
             tokens = [t for t in re.split(r'[\s]+', line) if t]
             images_line = []
             for sequence in tokens:
-                img_name = self.move_to_image.get(sequence)  # O(1)
+                img_name = self.move_to_image.get(sequence)
                 if img_name:
                     images_line.append(img_name)
             images_line_paths = [os.path.join(BASE_DIR, self.selected_assets, image.strip())
                                  for image in images_line]
             new_lines.append(images_line_paths)
 
-        # evita redesenho se nada mudou
         if new_lines == self.selected_images_lines:
             return
 
@@ -323,7 +334,7 @@ class VirtualKeyboardApp(ctk.CTk):
     def update_character_images(self, *_):
         selected_character = self.character_var.get().strip()
 
-        # Atualiza retrato
+        # Retrato
         char_folder = os.path.join(BASE_DIR, "char")
         if selected_character == "None":
             self.character_image_button.configure(state="disabled", text="(Character)", image=None)
@@ -336,11 +347,10 @@ class VirtualKeyboardApp(ctk.CTk):
                                                       command=self.add_character_image)
                 self.character_image_button.image = cimg
             else:
-                # sem popup
                 self.character_image_button.configure(state="disabled", text="(Character)", image=None)
                 self.character_image_button.image = None
 
-        # Limpa botões anteriores de character moves
+        # Limpa botões anteriores
         for row in getattr(self, "character_image_buttons", []):
             for b in row:
                 b.grid_forget()
@@ -359,9 +369,8 @@ class VirtualKeyboardApp(ctk.CTk):
             return
 
         char_moves = sorted(char_moves_str.split(", "))
-
-        column_index = 0
         assets_dir = os.path.join(BASE_DIR, self.selected_assets)
+        column_index = 0
         for move in char_moves:
             button_row = []
             for filename in os.listdir(assets_dir):
@@ -370,10 +379,12 @@ class VirtualKeyboardApp(ctk.CTk):
                 if move == filename[3:][:-4]:
                     image_path = os.path.join(assets_dir, filename)
                     cimg = self._get_ctk_image(image_path, (self.current_icon_size, self.current_icon_size))
-                    button = ctk.CTkButton(self.image_frame, image=cimg, text="",
-                                           width=self.current_icon_size, height=self.current_icon_size,
-                                           fg_color="transparent", hover_color="#2d1b53",
-                                           command=lambda p=image_path: self.toggle_image(p))
+                    button = ctk.CTkButton(
+                        self.image_frame, image=cimg, text="",
+                        width=self.current_icon_size, height=self.current_icon_size,
+                        fg_color="transparent", hover_color="#2d1b53",
+                        command=lambda p=image_path: self.toggle_image(p)
+                    )
                     button.image = cimg
                     button._image_path = image_path
                     button_row.append(button)
@@ -387,7 +398,7 @@ class VirtualKeyboardApp(ctk.CTk):
 
             self.character_image_buttons.append(button_row)
             for i, b in enumerate(button_row):
-                row_base = getattr(self, "_palette_rows_used", 8)  # após a palette
+                row_base = getattr(self, "_palette_rows_used", 8)
                 b.grid(row=row_base, column=column_index, padx=4, pady=4)
                 column_index += 1
 
@@ -412,7 +423,6 @@ class VirtualKeyboardApp(ctk.CTk):
         index = next(i for i, option in enumerate(self.assets_types) if option[0] == value_to_find)
         new_asset_folder = self.assets_types[index][1]
 
-        # troca nos já selecionados
         tmp = []
         for line in self.selected_images_lines:
             tmp_line = []
@@ -432,8 +442,19 @@ class VirtualKeyboardApp(ctk.CTk):
         self._update_selected_images_display()
 
     # ---------- Auto-resize da palette ----------
+    def _on_window_resize(self, event):
+        # só trata o próprio toplevel (janela) e quando muda largura de verdade
+        if event.widget is not self:
+            return
+        w = self.image_frame.winfo_width()
+        if abs(w - self._last_palette_width) >= 8:
+            self._last_palette_width = w
+            self._relayout_palette()
+
     def _relayout_palette(self):
-        """Debounce para relayout da palette."""
+        # trava durante preview
+        if self._suspend_relayout:
+            return
         if getattr(self, "_relayout_id", None) is not None:
             try:
                 self.after_cancel(self._relayout_id)
@@ -442,26 +463,26 @@ class VirtualKeyboardApp(ctk.CTk):
         self._relayout_id = self.after(60, self._relayout_palette_now)
 
     def _relayout_palette_now(self):
-        """Calcula o tamanho de ícone para caber a linha mais longa na largura disponível."""
+        if self._suspend_relayout:
+            self._relayout_id = self.after(60, self._relayout_palette_now)
+            return
+
         container = self.image_frame
         avail = max(0, container.winfo_width() - 16)
         if avail <= 0:
             self._relayout_id = self.after(80, self._relayout_palette_now)
             return
 
-        # maior número de botões numa linha
         max_row_len = 0
         for row in getattr(self, "image_buttons", []):
             max_row_len = max(max_row_len, len(row))
         for row in getattr(self, "character_image_buttons", []):
             max_row_len = max(max_row_len, len(row))
-
         if max_row_len == 0:
             return
 
         size_by_width = int((avail - (max_row_len - 1) * ICON_GAP) / max_row_len)
         new_size = max(ICON_MIN, min(ICON_MAX, size_by_width))
-
         if new_size == self.current_icon_size:
             return
 
@@ -469,7 +490,6 @@ class VirtualKeyboardApp(ctk.CTk):
         self._apply_icon_size(new_size)
 
     def _apply_icon_size(self, size: int):
-        """Atualiza imagem e width/height de todos os botões de ícone."""
         # palette
         for row in getattr(self, "image_buttons", []):
             for btn in row:
@@ -479,7 +499,6 @@ class VirtualKeyboardApp(ctk.CTk):
                 cimg = self._get_ctk_image(path, (size, size))
                 btn.configure(image=cimg, width=size, height=size)
                 btn.image = cimg
-
         # moves do personagem
         for row in getattr(self, "character_image_buttons", []):
             for btn in row:
@@ -492,10 +511,7 @@ class VirtualKeyboardApp(ctk.CTk):
 
     # ---------- Montagem da palette ----------
     def _load_and_group_images(self):
-        """Monta a palette:
-        - R1..R4: linhas com PALETTE_MAX_COLS (8) por grupo.
-        - R5 em diante: linhas com SECONDARY_MAX_COLS (12), costurando os grupos para completar a linha.
-        """
+        """R1..R4: 8 por linha por grupo; R5+: 12 por linha costurando."""
         assets_dir = os.path.join(BASE_DIR, self.selected_assets)
         if not os.path.isdir(assets_dir):
             self.image_buttons = []
@@ -520,17 +536,16 @@ class VirtualKeyboardApp(ctk.CTk):
 
         def key_group(prefix: str) -> int:
             try:
-                return int(prefix[1:])  # número após 'R'
+                return int(prefix[1:])
             except Exception:
                 return 9999
 
         ordered_groups = sorted(groups.items(), key=lambda kv: key_group(kv[0]))
 
-        # zera estrutura de linhas
         self.image_buttons = []
         current_row = 0
 
-        # --- PARTE A: R1..R4 (8 por linha, por grupo) ---
+        # Parte A: R1..R4 (8 por linha, por grupo)
         early_groups = [(p, flist) for (p, flist) in ordered_groups if key_group(p) < 5]
         for prefix, flist in early_groups:
             flist.sort()
@@ -554,7 +569,6 @@ class VirtualKeyboardApp(ctk.CTk):
                 btn.grid(row=row, column=col, padx=4, pady=4)
                 self.image_buttons[row].append(btn)
 
-                # tooltip
                 try:
                     file_name = filename[6:][:-4]
                     move_name = self.find_move_name(file_name)
@@ -566,7 +580,7 @@ class VirtualKeyboardApp(ctk.CTk):
             rows_used = (len(flist) + PALETTE_MAX_COLS - 1) // PALETTE_MAX_COLS
             current_row += rows_used
 
-        # --- PARTE B: R5+ (12 por linha, costurando grupos) ---
+        # Parte B: R5+ (12 por linha, costurando)
         tail_files = []
         for prefix, flist in ordered_groups:
             if key_group(prefix) >= 5:
@@ -604,7 +618,7 @@ class VirtualKeyboardApp(ctk.CTk):
         rows_used_tail = (len(tail_files) + SECONDARY_MAX_COLS - 1) // SECONDARY_MAX_COLS
         self._palette_rows_used = current_row + rows_used_tail
 
-        # auto-ajuste (mantém sem scroll horizontal)
+        # auto-ajuste
         self._relayout_palette()
 
     # ---------- Ações ----------
@@ -623,22 +637,15 @@ class VirtualKeyboardApp(ctk.CTk):
                     self.selected_images_lines.pop()
         self._update_selected_images_display()
 
-    '''def clear_selected_images(self):
-        self.selected_images_lines = []
-        self._update_selected_images_display()
-        self._update_preview_field()'''
     def clear_selected_images(self):
-    # limpa a caixa de digitação
+        # limpa a caixa de digitação também
         try:
             self.string_input.delete(0, tk.END)
         except Exception:
             pass
-
-        # limpa a seleção/preview
         self.selected_images_lines = []
         self._update_selected_images_display()
         self._update_preview_field()
-
 
     def _update_selected_images_display(self):
         for row_buttons in getattr(self, "image_buttons", []):
@@ -650,29 +657,69 @@ class VirtualKeyboardApp(ctk.CTk):
         self._update_preview_field()
 
     def _update_preview_field(self):
-        # limpa
-        for w in self.preview_frame.winfo_children():
-            w.destroy()
+        # trava relayout da palette durante a recriação do preview
+        self._suspend_relayout = True
+        try:
+            for w in self.preview_frame.winfo_children():
+                w.destroy()
 
-        if not self.selected_images_lines or all(len(line)==0 for line in self.selected_images_lines):
-            ph = ctk.CTkLabel(self.preview_frame,
-                              text="Nenhuma notação selecionada.\nClique nos ícones ou digite os códigos.",
-                              text_color=SUBTXT, justify="center")
-            ph.grid(row=0, column=0, padx=12, pady=12, sticky="n")
-            return
+            if not self.selected_images_lines or all(len(line)==0 for line in self.selected_images_lines):
+                ph = ctk.CTkLabel(self.preview_frame,
+                                  text="Nenhuma notação selecionada.\nClique nos ícones ou digite os códigos.",
+                                  text_color=SUBTXT, justify="center")
+                ph.grid(row=0, column=0, padx=12, pady=12, sticky="n")
+                return
 
-        max_width = 17 * 60
-        for r, line in enumerate(self.selected_images_lines):
-            total = len(line) * 60
-            scaled = max(28, int(60 * (max_width/total))) if total > max_width and len(line)>0 else 60
-            for c, image_path in enumerate(line):
-                if not os.path.exists(image_path):
-                    continue
-                cimg = self._get_ctk_image(image_path, (scaled, scaled))
-                lbl = ctk.CTkLabel(self.preview_frame, image=cimg, text="")
-                lbl.image = cimg
-                lbl.grid(row=r, column=c, padx=1, pady=2, sticky="w")
+            max_width = 17 * 60
+            for r, line in enumerate(self.selected_images_lines):
+                total = len(line) * 60
+                scaled = max(28, int(60 * (max_width/total))) if total > max_width and len(line)>0 else 60
+                for c, image_path in enumerate(line):
+                    if not os.path.exists(image_path):
+                        continue
+                    cimg = self._get_ctk_image(image_path, (scaled, scaled))
+                    lbl = ctk.CTkLabel(self.preview_frame, image=cimg, text="")
+                    lbl.image = cimg
+                    lbl.grid(row=r, column=c, padx=1, pady=2, sticky="w")
+        finally:
+            self._suspend_relayout = False
+            self.after(1, self._relayout_palette)
 
+    # ---------- Dicas ----------
+    def show_tips(self):
+        """Abre uma janelinha com dicas rápidas (fallback para messagebox)."""
+        tips = (
+            "• Digite a notação na caixa (com espaços em entre cada comando. separe linhas por vírgula(se necessário)).\n"
+            "• Clique nos ícones da Palette para adicionar ao Preview.\n"
+            "• ↺ remove o último comando, 🗑 limpa tudo (e a caixa), ⬇ salva PNG.\n"
+            "• 🗑 limpa todo Preview (e a caixa texto), ⬇ salva PNG.\n"
+            "• ⬇ salva PNG.\n"
+            "• Escolha o personagem e clique no retrato para inserir o ícone.\n"
+            "• R1..R4: 8 por linha; R5+: 12 por linha (costurando grupos).\n"
+            "• F1 abre estas dicas.\n"
+        )
+        try:
+            top = ctk.CTkToplevel(self)
+            top.title("Dicas")
+            top.geometry("800x600")
+            top.transient(self)
+            top.grab_set()
+            top.configure(fg_color=CARD)
+
+            ctk.CTkLabel(top, text="Dicas rápidas", font=("Segoe UI", 18, "bold"), text_color=TEXT)\
+               .pack(pady=(16, 8))
+
+            box = ctk.CTkTextbox(top, width=480, height=240)
+            box.pack(padx=16, pady=8, fill="both", expand=True)
+            box.insert("1.0", tips)
+            box.configure(state="disabled")
+
+            ctk.CTkButton(top, text="Fechar", fg_color=ACCENT, command=top.destroy)\
+               .pack(pady=(0, 16))
+        except Exception:
+            messagebox.showinfo("Dicas", tips)
+
+    # ---------- Exportar PNG ----------
     def export_images(self):
         if not self.selected_images_lines or all(len(line)==0 for line in self.selected_images_lines):
             messagebox.showinfo("Error", "Cannot save an empty notation.")
