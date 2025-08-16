@@ -52,7 +52,7 @@ class VirtualKeyboardApp(ctk.CTk):
         super().__init__()
 
         # ---- Janela / tema ----
-        self.title("Notation Image Generator")
+        self.title("TEKKEN 8 – COMBO NOTATION GENERATOR")
         self.geometry("1600x900")
         ctk.set_appearance_mode("dark")
         self.configure(fg_color=BG)
@@ -768,14 +768,14 @@ class VirtualKeyboardApp(ctk.CTk):
             "• Digite a notação na caixa (separe comandos com espaço; use vírgula para nova linha).\n"
             "• Clique nos ícones da Palette para adicionar ao Preview.\n"
             "• Atalhos: F1 = Dicas | F2 = Backspace | F3 = Clear | F4 = Salvar PNG\n"
-            "• R1..R4: 8 por linha; R5+: 12 por linha (costurando grupos).\n"
+            "• Itens Criados vão para pasta Saved Notation\n"
             "\n"
             "NOTATIONS TO TYPE\n"
         )
 
         try:
             top = ctk.CTkToplevel(self)
-            top.title("Dicas")
+            top.title("DICAS")
             top.geometry("760x560")
             top.transient(self)
             top.grab_set()
@@ -805,10 +805,12 @@ class VirtualKeyboardApp(ctk.CTk):
 
     # ---------- Exportar PNG ----------
     def export_images(self):
-        if not self.selected_images_lines or all(len(line)==0 for line in self.selected_images_lines):
+    # nada para salvar?
+        if not self.selected_images_lines or all(len(line) == 0 for line in self.selected_images_lines):
             messagebox.showinfo("Error", "Cannot save an empty notation.")
             return
 
+        # --- monta a imagem combinada ---
         width_per_image = 80
         height_per_image = 80
         max_line_length = max(len(line) for line in self.selected_images_lines)
@@ -817,36 +819,56 @@ class VirtualKeyboardApp(ctk.CTk):
         total_height = line_count * height_per_image
 
         from PIL import Image as PILImage
-        combined = PILImage.new('RGBA', (total_width, total_height), (0,0,0,0))
+        combined = PILImage.new('RGBA', (total_width, total_height), (0, 0, 0, 0))
         for r, line in enumerate(self.selected_images_lines):
             x = 0
             for p in line:
                 img = PILImage.open(p).resize((width_per_image, height_per_image), PILImage.LANCZOS)
-                combined.paste(img, (x, r*height_per_image), mask=img.convert('RGBA').split()[3])
+                combined.paste(img, (x, r * height_per_image), mask=img.convert('RGBA').split()[3])
                 x += width_per_image
 
-        out = os.path.join(BASE_DIR, "notation.png")
-        if os.path.exists(out):
-            i = 1
-            while os.path.exists(os.path.join(BASE_DIR, f"notation_{i}.png")):
-                i += 1
-            out = os.path.join(BASE_DIR, f"notation_{i}.png")
-        combined.save(out)
-        messagebox.showinfo("Save Successful", f"Image file saved as {os.path.basename(out)}")
+        # --- pasta de destino ---
+        save_dir = os.path.join(BASE_DIR, "Saved Notations")
+        os.makedirs(save_dir, exist_ok=True)
 
+        # --- nome base a partir do personagem ---
+        sel = (self.character_var.get() or "").strip()
+        if sel and sel.lower() != "none":
+            import re
+            base = re.sub(r'[^a-z0-9]+', '_', sel.lower()).strip('_') or "notation"
+        else:
+            base = "notation"
+
+        # --- caminho único na pasta: base.png, base_1.png, ...
+        def unique_path(base_name: str) -> str:
+            candidate = os.path.join(save_dir, f"{base_name}.png")
+            if not os.path.exists(candidate):
+                return candidate
+            i = 1
+            while True:
+                candidate = os.path.join(save_dir, f"{base_name}_{i}.png")
+                if not os.path.exists(candidate):
+                    return candidate
+                i += 1
+
+        out = unique_path(base)
+        combined.save(out)
+
+        # --- versão DARK opcional ---
         if self.include_dark.get():
-            dark = PILImage.new('RGBA', (total_width, total_height), (0,0,0,0))
+            dark = PILImage.new('RGBA', (total_width, total_height), (0, 0, 0, 0))
             for r, line in enumerate(self.selected_images_lines):
                 x = 0
                 for p in line:
                     dark_path = p.replace(".png", "_Dark.png")
                     if os.path.exists(dark_path):
                         dimg = PILImage.open(dark_path).resize((width_per_image, height_per_image), PILImage.LANCZOS)
-                        dark.paste(dimg, (x, r*height_per_image), mask=dimg.convert('RGBA').split()[3])
+                        dark.paste(dimg, (x, r * height_per_image), mask=dimg.convert('RGBA').split()[3])
                     x += width_per_image
-            dp = out.replace(".png", "_dark.png")
+            dp = out.replace(".png", "_dark.png")  # ex.: Saved Notations/king_2_dark.png
             dark.save(dp)
 
+        messagebox.showinfo("Save Successful", f"Saved to:\n{out}")
 
 if __name__ == "__main__":
     app = VirtualKeyboardApp()
