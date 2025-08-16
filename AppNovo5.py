@@ -623,10 +623,22 @@ class VirtualKeyboardApp(ctk.CTk):
                     self.selected_images_lines.pop()
         self._update_selected_images_display()
 
+    '''def clear_selected_images(self):
+        self.selected_images_lines = []
+        self._update_selected_images_display()
+        self._update_preview_field()'''
     def clear_selected_images(self):
+    # limpa a caixa de digitação
+        try:
+            self.string_input.delete(0, tk.END)
+        except Exception:
+            pass
+
+        # limpa a seleção/preview
         self.selected_images_lines = []
         self._update_selected_images_display()
         self._update_preview_field()
+
 
     def _update_selected_images_display(self):
         for row_buttons in getattr(self, "image_buttons", []):
