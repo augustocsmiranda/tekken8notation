@@ -21,14 +21,6 @@ Default:
 
 ![exported_image_default](https://github.com/LolJohn11/NotationImageGenerator/assets/49366383/c05b7dc8-71c3-4e0a-bb73-6fa61a78b44a)
 
-PlayStation:
-
-![exported_image_ps](https://github.com/LolJohn11/NotationImageGenerator/assets/49366383/7298c76b-2e1d-4711-bdde-8e54f2fe54e2)
-
-Xbox:
-
-![exported_image_xbox](https://github.com/LolJohn11/NotationImageGenerator/assets/49366383/49ca8e6d-e109-4ae0-bebd-30d356c9d098)
-
 ## To-do:
 - [X] Tooltips for text buttons
 - [X] Character-specific buttons (stances, etc.)
