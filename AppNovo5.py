@@ -746,10 +746,10 @@ class VirtualKeyboardApp(ctk.CTk):
                 ph.grid(row=0, column=0, padx=12, pady=12, sticky="n")
                 return
 
-            max_width = 17 * 60
+            max_width = 17 * 32
             for r, line in enumerate(self.selected_images_lines):
-                total = len(line) * 60
-                scaled = max(28, int(60 * (max_width/total))) if total > max_width and len(line)>0 else 60
+                total = len(line) * 32
+                scaled = max(28, int(32 * (max_width/total))) if total > max_width and len(line)>0 else 32 # 60 para 32
                 for c, image_path in enumerate(line):
                     if not os.path.exists(image_path):
                         continue
