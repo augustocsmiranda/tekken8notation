@@ -1,4 +1,4 @@
-import os
+import sys, os
 import csv
 import ctypes
 import re
@@ -16,7 +16,27 @@ TEXT    = "#e6e6ff"
 SUBTXT  = "#9aa3c7"
 ACCENT  = "#7c3aed"
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+########
+
+
+def resource_path(*parts):
+    """Caminho de recursos empacotados (PyInstaller)."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:  # executável (onefile/onefolder)
+        return os.path.join(base, *parts)
+    # dev / rodando via .py
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), *parts)
+
+# Onde SALVAR (persistente). Escolha UMA das opções:
+# 1) ao lado do .exe / projeto:
+APP_DIR = (os.path.dirname(os.path.abspath(sys.executable))
+           if getattr(sys, "frozen", False)
+           else os.path.dirname(os.path.abspath(__file__)))
+SAVE_DIR = os.path.join(APP_DIR, "Saved Notations")
+
+
+
 
 # Grade da palette
 PALETTE_MAX_COLS    = 8    # R1..R4 = 8 por linha
@@ -53,7 +73,7 @@ class VirtualKeyboardApp(ctk.CTk):
 
         # ---- Janela / tema ----
         __version__ = "1.0.0"
-        self.title("TEKKEN 8 – COMBO NOTATION GENERATOR v{__version__}")
+        self.title(f"TEKKEN 8 – COMBO NOTATION GENERATOR v{__version__}")
         self.geometry("1600x900")
         ctk.set_appearance_mode("dark")
         self.configure(fg_color=BG)
@@ -66,12 +86,25 @@ class VirtualKeyboardApp(ctk.CTk):
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass
-        icon_path = os.path.join(BASE_DIR, "icon.ico")
+        # = os.path.join(BASE_DIR, "icon.ico")
+        '''icon_path = resource_path("icon.ico")
         if os.path.exists(icon_path):
             try:
                 self.iconbitmap(icon_path)
             except Exception:
-                pass
+                pass'''
+        icon_path = resource_path("icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.iconbitmap(icon_path)  # título/janela
+            except Exception as e:
+                print("iconbitmap falhou:", e)
+                # fallback (PNG) – funciona em alguns ambientes:
+                try:
+                    from tkinter import PhotoImage
+                    self.iconphoto(True, PhotoImage(file=resource_path("icon.png")))
+                except Exception as e2:
+                    print("iconphoto falhou:", e2)
 
         # ---- Dados / estado ----
         self.assets_types = [
@@ -87,11 +120,13 @@ class VirtualKeyboardApp(ctk.CTk):
         ]
 
         # CSVs
-        movedict_csv = os.path.join(BASE_DIR, "data", "MoveDictModified.csv")
+       #movedict_csv = os.path.join(BASE_DIR, "data", "MoveDictModified.csv")
+        movedict_csv = resource_path("data", "MoveDictModified.csv")
         with open(movedict_csv, mode='r', encoding='utf-8') as file:
             self.MoveDict = [row for row in csv.DictReader(file, delimiter=';')]
 
-        charmoves_csv = os.path.join(BASE_DIR, "data", "CharMoves.csv")
+        #charmoves_csv = os.path.join(BASE_DIR, "data", "CharMoves.csv")
+        charmoves_csv = resource_path("data", "CharMoves.csv")
         with open(charmoves_csv, mode='r', encoding='utf-8') as file:
             self.CharMoves = [row for row in csv.DictReader(file, delimiter=';')]
 
@@ -325,8 +360,9 @@ class VirtualKeyboardApp(ctk.CTk):
                 img_name = self.move_to_image.get(sequence)
                 if img_name:
                     images_line.append(img_name)
-            images_line_paths = [os.path.join(BASE_DIR, self.selected_assets, image.strip())
-                                 for image in images_line]
+            #images_line_paths = [os.path.join(BASE_DIR, self.selected_assets, image.strip())
+            images_line_paths = [resource_path(self.selected_assets, image.strip()) for image in images_line]
+                #for image in images_line]
             new_lines.append(images_line_paths)
 
         if new_lines == self.selected_images_lines:
@@ -389,7 +425,8 @@ class VirtualKeyboardApp(ctk.CTk):
         selected_character = self.character_var.get().strip()
 
         # Retrato
-        char_folder = os.path.join(BASE_DIR, "char")
+        #char_folder = os.path.join(BASE_DIR, "char")
+        char_folder = resource_path("char")
         if selected_character == "None":
             self.character_image_button.configure(state="disabled", text="(Character)", image=None)
             self.character_image_button.image = None
@@ -430,7 +467,8 @@ class VirtualKeyboardApp(ctk.CTk):
             return
 
         char_moves = sorted(char_moves_str.split(", "))
-        assets_dir = os.path.join(BASE_DIR, self.selected_assets)
+        #assets_dir = os.path.join(BASE_DIR, self.selected_assets)
+        assets_dir = resource_path(self.selected_assets)
         column_index = 0
         for move in char_moves:
             button_row = []
@@ -470,7 +508,8 @@ class VirtualKeyboardApp(ctk.CTk):
         selected_character = self.character_var.get().strip()
         if selected_character == "None":
             return
-        char_image_path = os.path.join(BASE_DIR, "char", selected_character + ".png")
+        #char_image_path = os.path.join(BASE_DIR, "char", selected_character + ".png")
+        char_image_path = resource_path("char", selected_character + ".png")
         if os.path.exists(char_image_path):
             if self.selected_images_lines:
                 self.selected_images_lines[-1].append(char_image_path)
@@ -488,8 +527,10 @@ class VirtualKeyboardApp(ctk.CTk):
         for line in self.selected_images_lines:
             tmp_line = []
             for item in line:
-                old = os.path.join(BASE_DIR, self.selected_assets)
-                new = os.path.join(BASE_DIR, new_asset_folder)
+                #old = os.path.join(BASE_DIR, self.selected_assets)
+                #new = os.path.join(BASE_DIR, new_asset_folder)
+                old = resource_path(self.selected_assets)
+                new = resource_path(new_asset_folder)
                 tmp_line.append(item.replace(old, new))
             tmp.append(tmp_line)
         self.selected_images_lines = tmp
@@ -573,7 +614,8 @@ class VirtualKeyboardApp(ctk.CTk):
     # ---------- Montagem da palette ----------
     def _load_and_group_images(self):
         """R1..R4: 8 por linha por grupo; R5+: 12 por linha costurando."""
-        assets_dir = os.path.join(BASE_DIR, self.selected_assets)
+        #assets_dir = os.path.join(BASE_DIR, self.selected_assets)
+        assets_dir = resource_path(self.selected_assets)
         if not os.path.isdir(assets_dir):
             self.image_buttons = []
             self._palette_rows_used = 0
@@ -829,9 +871,10 @@ class VirtualKeyboardApp(ctk.CTk):
                 x += width_per_image
 
         # --- pasta de destino ---
-        save_dir = os.path.join(BASE_DIR, "Saved Notations")
+        # = os.path.join(BASE_DIR, "Saved Notations")
+        #os.makedirs(save_dir, exist_ok=True)
+        save_dir = SAVE_DIR
         os.makedirs(save_dir, exist_ok=True)
-
         # --- nome base a partir do personagem ---
         sel = (self.character_var.get() or "").strip()
         if sel and sel.lower() != "none":
