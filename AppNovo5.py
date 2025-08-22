@@ -16,10 +16,6 @@ TEXT    = "#e6e6ff"
 SUBTXT  = "#9aa3c7"
 ACCENT  = "#7c3aed"
 
-
-########
-
-
 def resource_path(*parts):
     """Caminho de recursos empacotados (PyInstaller)."""
     base = getattr(sys, "_MEIPASS", None)
