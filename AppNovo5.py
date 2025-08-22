@@ -52,7 +52,8 @@ class VirtualKeyboardApp(ctk.CTk):
         super().__init__()
 
         # ---- Janela / tema ----
-        self.title("TEKKEN 8 – COMBO NOTATION GENERATOR")
+        __version__ = "1.0.0"
+        self.title("TEKKEN 8 – COMBO NOTATION GENERATOR v{__version__}")
         self.geometry("1600x900")
         ctk.set_appearance_mode("dark")
         self.configure(fg_color=BG)
