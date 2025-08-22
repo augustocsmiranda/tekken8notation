@@ -1,30 +1,76 @@
-# Notation Image Generator
-Generating images of combo notations for Tekken 8. Done with ChatGPT and some blind tinkering.
+# Tekken 8 – Combo Notation Generator (fork)
 
-![image](https://github.com/LolJohn11/NotationImageGenerator/assets/49366383/8701866b-312c-458d-a3bf-ade5abe56d98)
+Este repositório é um **fork** do projeto **NotationImageGenerator** criado por **lolJooh11**.  
+Eu parti do código original e **modifiquei/estendi** a ferramenta com melhorias de interface, carregamento de recursos para empacotamento (PyInstaller) e fluxo de exportação. **Todos os créditos do projeto base** são do autor original.
 
-## Usage
-1. Download the latest release `.zip` archive from the Releases section.
-2. Unpack into a folder of your choice.
-3. Launch via the `Notation Image Generator.exe`
+<img width="1609" height="929" alt="image" src="https://github.com/user-attachments/assets/c7b8311b-bdec-4f8b-a9c7-ac0d9b8ce4f8" />
 
-## Functionality
-- Press the move button to add it to an image. Use `Backspace` to remove the last image and `Clear` to start from scratch. Clicking `Save as PNG` will create an image file in the app's folder.
-- Select the `Character` from the drop-down menu to bring up their specific moves (character portrait is also a button!).
-- Hover over a "text" button to see a tooltip with the full name of the move.
-- Enable the `Include dark notation` option to also generate a dark version of the notation image (useful if you want to mimic the in-game "play demo" visuals for combo notation).
-- Change the `Button style` to customize the look of the buttons in the notation (see examples of available button styles below).
+---
 
-## Examples of different button styles
+## ✨ O que este fork adiciona
 
-Default:
+- UI modernizada com **customtkinter** (tema escuro, layout em cartões, preview ao lado).
+- Função **`resource_path(...)`** para localizar arquivos quando empacotado com **PyInstaller** (suporte a *one-file* e *one-folder*).
+- **Pasta de saída persistente** `Saved Notations/` (não salva em `_MEIPASS`).
+- **Preview multi‑linhas**: separe linhas com vírgula (**`,`**).
+- **Redimensionamento automático** do preview (base 32px) e **auto‑resize** da paleta.
+- **Atalhos**: `F1` Dicas • `F2` Backspace • `F3` Clear • `F4` Salvar PNG.
+- **Ícone** da janela + **AppUserModelID** no Windows (melhor pin na taskbar).
+- Exportação opcional **dark** usando imagens com sufixo `_Dark.png`.
+- Leitura de CSVs `MoveDictModified.csv` e `CharMoves.csv` (delimitador `;`, UTF‑8).
 
-![exported_image_default](https://github.com/LolJohn11/NotationImageGenerator/assets/49366383/c05b7dc8-71c3-4e0a-bb73-6fa61a78b44a)
+> O projeto original usa `tkinter` puro, pré‑visualização a 50px e salva na pasta atual.  
+> Este fork reorganiza a UI, padroniza paths para empacotamento e define um diretório de saída estável.
 
-## To-do:
-- [X] Tooltips for text buttons
-- [X] Character-specific buttons (stances, etc.)
-- [X] Add a suffix to generated images
-- [ ] Add number buttons
-- [ ] UI Improvements
-- [ ] Adding a colored background to the exported image
+---
+
+## 🧭 Como usar
+
+1. **Palette** (esquerda): clique nos ícones para adicionar ao preview.  
+2. **Campo de texto**: digite notações (separe entradas por **espaço**).
+   
+   Ex.: `F N D DF 2 > F F 2 FH > SEN 3 > DF 1 FH > SEN 12 > HW 3 4 `
+   
+   <img width="1609" height="940" alt="image" src="https://github.com/user-attachments/assets/d9d5ecd0-ad29-4bbe-873f-6fc5490a1a05" />
+   
+   Use **vírgula** (**`,`**) para **quebrar linha** no preview.
+   
+   Ex.: `f f 2, d 1 2`
+
+   <img width="1614" height="939" alt="image" src="https://github.com/user-attachments/assets/2fc65718-8c2b-4d54-86a9-0d2dca9b2afd" />
+
+
+4. **Character**: escolha um personagem para exibir o retrato e botões de golpes dele.
+5. **Salvar PNG**: botão **⬇** ou **F4** → arquivo(s) vão para `Saved Notations/`.
+
+Atalhos úteis: **F1** Dicas • **F2** Backspace • **F3** Clear • **F4** Salvar.
+
+---
+
+## 📁 Estrutura de pastas
+
+```
+.
+├─ AppNovo5.py
+├─ icon.ico
+├─ char/
+├─ assets/
+├─ data/
+│  ├─ MoveDictModified.csv
+│  └─ CharMoves.csv
+└─ Saved Notations/   # gerada em runtime (saída)
+```
+
+**CSV – formatos:**
+- `MoveDictModified.csv` → colunas **Move**, **Image**, **Name**  
+- `CharMoves.csv` → colunas **Character**, **Moves** (lista separada por “, ”)
+
+---
+
+## 🙌 Créditos
+
+- Projeto base: **NotationImageGenerator** por **lolJooh11**.
+- https://github.com/LolJohn11/NotationImageGenerator?tab=readme-ov-file
+- Este fork: melhorias de UI/empacotamento e ajustes de preview/paths.
+
+> Este repositório existe **em homenagem e com respeito** ao trabalho do autor original.  
